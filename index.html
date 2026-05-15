@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Avengers: Age of Ultron palette — golden/amber holographic Jarvis brain. */
+      --jarvis-blue: #ffd28a;          /* primary "blue" var is now gold */
+      --jarvis-glow: #ffb347;          /* warm amber glow */
+      --jarvis-deep: #2a1500;          /* deep amber-brown */
+      --jarvis-gold: #ffe9b3;          /* bright halo */
+      --jarvis-amber: #ff8c00;         /* core flame */
+      --jarvis-deep-orange: #ff5722;   /* hot inner */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Share Tech Mono', monospace;
+      background: #000;
+      color: var(--jarvis-blue);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      overflow-x: hidden;
+      position: relative;
+    }
+    /* Warm amber holographic backdrop — Age of Ultron lab vibe. */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse at center, rgba(255,140,0,0.18) 0%, transparent 55%),
+        radial-gradient(ellipse at top, rgba(255,179,71,0.15) 0%, transparent 60%),
+        radial-gradient(circle at 20% 30%, rgba(255,87,34,0.08) 0%, transparent 30%),
+        radial-gradient(circle at 80% 70%, rgba(255,179,71,0.08) 0%, transparent 30%),
+        #060300;
+      z-index: -2;
+      animation: gridDrift 30s linear infinite;
+    }
+    @keyframes gridDrift {
+      to { background-position: 0 0, 0 0, 0 0, 0 0, 0 -200px, -200px 0, 0 0; }
+    }
+
+    /* Floating particles — slow-drifting dots in the background */
+    .particles {
+      position: fixed; inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    .particles span {
+      position: absolute;
+      bottom: -10px;
+      width: 3px; height: 3px;
+      background: var(--jarvis-blue);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--jarvis-blue), 0 0 16px var(--jarvis-glow);
+      opacity: 0;
+      animation: rise linear infinite;
+    }
+    @keyframes rise {
+      0%   { transform: translateY(0) translateX(0); opacity: 0; }
+      10%  { opacity: 0.9; }
+      90%  { opacity: 0.6; }
+      100% { transform: translateY(-110vh) translateX(40px); opacity: 0; }
+    }
+    /* Scanlines overlay */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        rgba(0,0,0,0) 0,
+        rgba(0,0,0,0) 2px,
+        rgba(46,176,255,0.04) 3px,
+        rgba(46,176,255,0.04) 4px
+      );
+      z-index: -1;
+      pointer-events: none;
+      animation: scan 8s linear infinite;
+    }
+    @keyframes scan {
+      from { background-position: 0 0; }
+      to   { background-position: 0 100px; }
+    }
+    /* HUD corner brackets */
+    .corner {
+      position: fixed;
+      width: 60px;
+      height: 60px;
+      border: 2px solid var(--jarvis-glow);
+      pointer-events: none;
+      filter: drop-shadow(0 0 6px var(--jarvis-glow));
+    }
+    .corner.tl { top: 12px; left: 12px; border-right: 0; border-bottom: 0; }
+    .corner.tr { top: 12px; right: 12px; border-left: 0; border-bottom: 0; }
+    .corner.bl { bottom: 12px; left: 12px; border-right: 0; border-top: 0; }
+    .corner.br { bottom: 12px; right: 12px; border-left: 0; border-top: 0; }
+
+    /* HUD telemetry readouts in the corners — fake Stark-Industries stats */
+    .hud {
+      position: fixed;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--jarvis-blue);
+      text-shadow: 0 0 6px var(--jarvis-glow);
+      pointer-events: none;
+      z-index: 5;
+      line-height: 1.5;
+    }
+    .hud.tl { top: 18px; left: 80px; }
+    .hud.tr { top: 18px; right: 80px; text-align: right; }
+    .hud.bl { bottom: 18px; left: 80px; }
+    .hud.br { bottom: 18px; right: 80px; text-align: right; }
+    .hud .label { color: #4a90c0; font-size: 9px; }
+    .hud .val { color: #aef0ff; font-weight: 700; }
+    .hud .val.ok { color: #6ee7b7; text-shadow: 0 0 6px #6ee7b7; }
+    .hud .val.warn { color: #ffeb3b; text-shadow: 0 0 6px #ffeb3b; }
+    .hud .blink { animation: blink 1s steps(2) infinite; }
+    @keyframes blink { 50% { opacity: 0.3; } }
+
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      letter-spacing: 24px;
+      padding-left: 24px;          /* even out the trailing letter-spacing */
+      font-size: 56px;
+      margin: 16px 0 8px;
+      color: #eaf6ff;
+      text-shadow:
+        0 0 8px var(--jarvis-glow),
+        0 0 24px var(--jarvis-glow),
+        0 0 60px var(--jarvis-glow);
+      animation: glowPulse 3s ease-in-out infinite;
+      position: relative;
+    }
+    @keyframes glowPulse {
+      0%, 100% { text-shadow: 0 0 8px var(--jarvis-glow), 0 0 24px var(--jarvis-glow), 0 0 60px var(--jarvis-glow); }
+      50%      { text-shadow: 0 0 12px #fff, 0 0 36px #5ec8ff, 0 0 80px #5ec8ff; }
+    }
+    /* Chromatic glitch overlay on the title when Jarvis is speaking. */
+    body.talking h1 {
+      animation: glitch 0.4s steps(2) infinite, glowPulse 1s ease-in-out infinite;
+    }
+    @keyframes glitch {
+      0%   { text-shadow: -2px 0 #ff3366, 2px 0 #00eaff, 0 0 24px var(--jarvis-glow); transform: translate(0); }
+      33%  { text-shadow: 2px 0 #ff3366, -2px 0 #00eaff, 0 0 36px #fff; transform: translate(1px, -1px); }
+      66%  { text-shadow: -1px 0 #ff3366, 1px 0 #00eaff, 0 0 30px var(--jarvis-blue); transform: translate(-1px, 1px); }
+      100% { text-shadow: 0 0 8px var(--jarvis-glow), 0 0 24px var(--jarvis-glow), 0 0 60px var(--jarvis-glow); transform: translate(0); }
+    }
+    .subtitle {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 6px;
+      color: #4a90c0;
+      margin-bottom: 12px;
+    }
+
+    /* Degree markers around the main ring — like Iron Man helmet HUD readouts. */
+    .degrees {
+      position: absolute;
+      width: 120%; height: 120%;
+      pointer-events: none;
+      animation: spin 60s linear infinite;
+    }
+    .degrees span {
+      position: absolute;
+      top: 50%; left: 50%;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--jarvis-blue);
+      text-shadow: 0 0 6px var(--jarvis-glow);
+      transform-origin: 0 0;
+    }
+    /* Tick marks ring — 24 thin tick marks around the outside. */
+    .ticks {
+      position: absolute;
+      width: 116%; height: 116%;
+      pointer-events: none;
+      background:
+        repeating-conic-gradient(from 0deg, var(--jarvis-blue) 0deg 0.5deg, transparent 0.5deg 15deg);
+      -webkit-mask: radial-gradient(circle, transparent 47%, #000 48%, #000 50%, transparent 51%);
+      mask: radial-gradient(circle, transparent 47%, #000 48%, #000 50%, transparent 51%);
+      filter: drop-shadow(0 0 4px var(--jarvis-glow));
+      animation: spin 45s linear infinite reverse;
+    }
+    /* Orbital nodes with labels — small data points circling the core. */
+    .orbital {
+      position: absolute;
+      width: 130%; height: 130%;
+      pointer-events: none;
+    }
+    .orbital .node {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 8px; height: 8px;
+      margin: -4px 0 0 -4px;
+      border-radius: 50%;
+      background: var(--jarvis-blue);
+      box-shadow: 0 0 8px var(--jarvis-blue), 0 0 16px var(--jarvis-glow);
+      transform-origin: 0 0;
+    }
+    .orbital .node::after {
+      content: attr(data-label);
+      position: absolute;
+      top: 10px; left: 10px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      color: var(--jarvis-blue);
+      text-shadow: 0 0 4px var(--jarvis-glow);
+      white-space: nowrap;
+    }
+    .orbital.o1 { animation: spin 18s linear infinite; }
+    .orbital.o2 { animation: spin 26s linear infinite reverse; }
+
+    /* Data stream panel — scrolling binary down the sides like Iron Man's HUD edges. */
+    .datastream {
+      position: fixed;
+      top: 80px; bottom: 80px;
+      width: 26px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      line-height: 16px;
+      color: var(--jarvis-blue);
+      text-shadow: 0 0 6px var(--jarvis-glow);
+      opacity: 0.6;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 4;
+      mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 15%, #000 85%, transparent 100%);
+    }
+    .datastream.left { left: 18px; }
+    .datastream.right { right: 18px; text-align: right; }
+    .datastream div { animation: streamUp 20s linear infinite; }
+    @keyframes streamUp {
+      from { transform: translateY(0); }
+      to   { transform: translateY(-50%); }
+    }
+
+    /* Centre-screen crosshair / targeting reticle. */
+    .reticle {
+      position: fixed;
+      top: 50%; left: 50%;
+      width: 600px; height: 600px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      opacity: 0.25;
+      z-index: 0;
+    }
+    .reticle::before, .reticle::after {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      border: 1px solid var(--jarvis-glow);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--jarvis-glow);
+    }
+    .reticle::before { width: 380px; height: 380px; border-style: dashed; animation: spin 90s linear infinite; }
+    .reticle::after  { width: 500px; height: 500px; border-style: dotted; animation: spin 120s linear infinite reverse; }
+
+    /* Hex pattern that sits behind the core for that Stark-HUD look. */
+    .hexbg {
+      position: absolute;
+      width: 460px; height: 460px;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      opacity: 0.35;
+      background-image:
+        radial-gradient(circle, transparent 65%, #000 66%),
+        repeating-linear-gradient(60deg,  rgba(94,200,255,0.4) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(-60deg, rgba(94,200,255,0.4) 0 1px, transparent 1px 28px),
+        repeating-linear-gradient(0deg,   rgba(94,200,255,0.4) 0 1px, transparent 1px 28px);
+      mask-image: radial-gradient(circle at center, #000 0%, transparent 70%);
+      -webkit-mask-image: radial-gradient(circle at center, #000 0%, transparent 70%);
+      animation: spin 80s linear infinite;
+    }
+
+    /* Multi-ring HUD core */
+    .core {
+      width: 420px;
+      height: 420px;
+      position: relative;
+      margin: 12px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 0 28px var(--jarvis-amber));
+      perspective: 1000px;
+    }
+    /* The signature AoU Jarvis brain — an AI-generated image of the golden neural cloud.
+       It does THREE things at once: SVG turbulence warps the wisps, the sphere tumbles
+       in 3D, and it periodically "ignites" with a thinking pulse — bigger + brighter. */
+    .jarvis-img {
+      position: absolute;
+      width: 88%; height: 88%;
+      border-radius: 50%;
+      background-image: url('jarvis_brain.jpg');
+      background-size: cover;
+      background-position: center;
+      mix-blend-mode: screen;
+      filter: url(#jarvisWarp) brightness(1.15) contrast(1.1) saturate(1.15);
+      animation:
+        brainTumble 12s ease-in-out infinite,
+        brainPulse 3.5s ease-in-out infinite;
+      transform-style: preserve-3d;
+      will-change: transform, filter;
+    }
+    /* True 3D tumble — rotates around all three axes, NOT just spinning flat. */
+    @keyframes brainTumble {
+      0%   { transform: rotateX(0deg)   rotateY(0deg)   rotateZ(0deg); }
+      25%  { transform: rotateX(20deg)  rotateY(35deg)  rotateZ(40deg); }
+      50%  { transform: rotateX(-15deg) rotateY(70deg)  rotateZ(80deg); }
+      75%  { transform: rotateX(25deg)  rotateY(-30deg) rotateZ(140deg); }
+      100% { transform: rotateX(0deg)   rotateY(0deg)   rotateZ(180deg); }
+    }
+    /* Periodic "thinking pulse" — sphere swells and burns brighter, then settles back. */
+    @keyframes brainPulse {
+      0%, 100% {
+        filter: url(#jarvisWarp) brightness(1.1) contrast(1.1) saturate(1.1);
+        opacity: 0.9;
+      }
+      40% {
+        filter: url(#jarvisWarp) brightness(1.4) contrast(1.2) saturate(1.3);
+        opacity: 1;
+      }
+      50% {
+        filter: url(#jarvisWarp) brightness(1.8) contrast(1.4) saturate(1.6);
+        opacity: 1;
+      }
+      60% {
+        filter: url(#jarvisWarp) brightness(1.3) contrast(1.2) saturate(1.3);
+        opacity: 1;
+      }
+    }
+
+    /* Energy halo behind the image that pulses outward — represents thinking ripples. */
+    .think-pulse {
+      position: absolute;
+      width: 88%; height: 88%;
+      border-radius: 50%;
+      border: 2px solid var(--jarvis-amber);
+      opacity: 0;
+      animation: thinkRipple 3.5s ease-out infinite;
+      pointer-events: none;
+    }
+    .think-pulse.b { animation-delay: 1.2s; }
+    .think-pulse.c { animation-delay: 2.4s; }
+    @keyframes thinkRipple {
+      0%   { transform: scale(0.6); opacity: 0; border-width: 4px; }
+      15%  { opacity: 0.9; }
+      100% { transform: scale(1.4); opacity: 0; border-width: 1px; }
+    }
+
+    /* WHEN TALKING — chaotic, fast, intense. The cloud "ignites". */
+    .core.talking .jarvis-img {
+      filter: url(#jarvisWarpStrong) brightness(1.6) contrast(1.3) saturate(1.6);
+      animation:
+        brainTumble 3s ease-in-out infinite,
+        brainPulse 0.7s ease-in-out infinite;
+    }
+    .core.talking .think-pulse {
+      animation-duration: 0.9s;
+      border-color: var(--jarvis-gold);
+    }
+    .ring, .ring-inner, .ring-arc, .ring-arc2, .ring-arc3, .ring-outer, .radar, .ticks {
+      position: absolute;
+      border-radius: 50%;
+    }
+    /* Outermost faint ring with rotating tick marks. */
+    .ring-outer {
+      width: 108%; height: 108%;
+      border: 1px solid rgba(94,200,255,0.3);
+      animation: spin 40s linear infinite;
+    }
+    /* Tilted 3D rings for depth. */
+    .ring-tilt-a, .ring-tilt-b {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(94,200,255,0.55);
+      box-shadow: 0 0 12px rgba(46,176,255,0.4);
+      pointer-events: none;
+    }
+    .ring-tilt-a {
+      width: 110%; height: 110%;
+      transform: rotateX(72deg) rotateZ(0deg);
+      animation: spin3dA 8s linear infinite;
+    }
+    .ring-tilt-b {
+      width: 102%; height: 102%;
+      transform: rotateX(72deg) rotateY(35deg);
+      border-style: dashed;
+      border-color: rgba(94,200,255,0.4);
+      animation: spin3dB 11s linear infinite;
+    }
+    @keyframes spin3dA { from { transform: rotateX(72deg) rotateZ(0deg); } to { transform: rotateX(72deg) rotateZ(360deg); } }
+    @keyframes spin3dB { from { transform: rotateX(72deg) rotateY(35deg) rotateZ(0deg); } to { transform: rotateX(72deg) rotateY(35deg) rotateZ(-360deg); } }
+
+    /* Holographic shine sweep that crosses the core every few seconds. */
+    .shine {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: linear-gradient(110deg,
+        transparent 30%,
+        rgba(255,255,255,0.15) 45%,
+        rgba(255,255,255,0.4) 50%,
+        rgba(255,255,255,0.15) 55%,
+        transparent 70%);
+      mix-blend-mode: screen;
+      animation: shine 6s linear infinite;
+      pointer-events: none;
+    }
+    @keyframes shine {
+      0%   { transform: translateX(-100%); opacity: 0; }
+      20%  { opacity: 1; }
+      80%  { opacity: 1; }
+      100% { transform: translateX(100%); opacity: 0; }
+    }
+
+    /* Energy spark dots that fly outward from the core when talking. */
+    .sparks { position: absolute; inset: 0; pointer-events: none; }
+    .core.talking .sparks span {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 8px #fff, 0 0 16px var(--jarvis-blue);
+      animation: spark 1.2s ease-out infinite;
+    }
+    /* Odd-indexed sparks get a Mind-Stone gold tint for Vision/AoU vibes. */
+    .core.talking .sparks span:nth-child(odd) {
+      background: var(--jarvis-gold);
+      box-shadow: 0 0 8px var(--jarvis-gold), 0 0 18px #ff8c00;
+    }
+    .core .sparks span { display: none; }
+    .core.talking .sparks span { display: block; }
+    .core.talking .sparks span:nth-child(1) { --a:   0deg; animation-delay: 0.0s; }
+    .core.talking .sparks span:nth-child(2) { --a:  45deg; animation-delay: 0.15s; }
+    .core.talking .sparks span:nth-child(3) { --a:  90deg; animation-delay: 0.3s; }
+    .core.talking .sparks span:nth-child(4) { --a: 135deg; animation-delay: 0.45s; }
+    .core.talking .sparks span:nth-child(5) { --a: 180deg; animation-delay: 0.6s; }
+    .core.talking .sparks span:nth-child(6) { --a: 225deg; animation-delay: 0.75s; }
+    .core.talking .sparks span:nth-child(7) { --a: 270deg; animation-delay: 0.9s; }
+    .core.talking .sparks span:nth-child(8) { --a: 315deg; animation-delay: 1.05s; }
+    @keyframes spark {
+      0%   { transform: rotate(var(--a)) translateX(0) scale(1.5); opacity: 1; }
+      100% { transform: rotate(var(--a)) translateX(180px) scale(0); opacity: 0; }
+    }
+    .ring {
+      width: 100%; height: 100%;
+      border: 2px solid var(--jarvis-glow);
+      box-shadow: 0 0 32px var(--jarvis-glow), inset 0 0 32px rgba(46,176,255,0.4);
+      background: radial-gradient(circle, rgba(46,176,255,0.18), transparent 70%);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .ring.talking {
+      transform: scale(1.06);
+      box-shadow: 0 0 80px var(--jarvis-blue), inset 0 0 80px rgba(94,200,255,0.5);
+    }
+    /* Ripple ring that expands outward when speaking. */
+    .ring.talking::after {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      border: 2px solid var(--jarvis-blue);
+      animation: ripple 1.2s ease-out infinite;
+    }
+    @keyframes ripple {
+      0%   { transform: scale(1); opacity: 0.9; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+    .ring-inner {
+      width: 70%; height: 70%;
+      border: 1px dashed rgba(94,200,255,0.6);
+      animation: spin 14s linear infinite;
+    }
+    .ring-arc {
+      width: 86%; height: 86%;
+      border: 2px solid transparent;
+      border-top-color: var(--jarvis-blue);
+      border-right-color: var(--jarvis-blue);
+      animation: spin 6s linear infinite;
+    }
+    .ring-arc2 {
+      width: 96%; height: 96%;
+      border: 2px solid transparent;
+      border-bottom-color: var(--jarvis-glow);
+      border-left-color: var(--jarvis-glow);
+      animation: spinRev 9s linear infinite;
+    }
+    .ring-arc3 {
+      width: 54%; height: 54%;
+      border: 1px solid var(--jarvis-blue);
+      animation: spin 22s linear infinite reverse;
+      border-style: dotted;
+    }
+    /* Radar sweep — a rotating conic-gradient beam over the core. */
+    .radar {
+      width: 92%; height: 92%;
+      background: conic-gradient(from 0deg,
+        rgba(94,200,255,0.5) 0deg,
+        rgba(94,200,255,0.15) 30deg,
+        transparent 60deg,
+        transparent 360deg);
+      animation: spin 4s linear infinite;
+      mix-blend-mode: screen;
+      filter: blur(2px);
+      opacity: 0.7;
+    }
+    .core-center {
+      width: 30%; height: 30%;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 35%, rgba(255,255,255,0.9), rgba(94,200,255,0.4) 30%, rgba(46,176,255,0.1) 60%, transparent 80%);
+      animation: corePulse 1.8s ease-in-out infinite;
+      position: absolute;
+      box-shadow: 0 0 40px var(--jarvis-blue), inset 0 0 20px rgba(255,255,255,0.4);
+      transition: box-shadow 0.1s;
+    }
+    /* When Jarvis is talking, the core gets bigger, brighter, and jitters in sync with speech. */
+    .core.talking .core-center {
+      animation: coreTalk 0.18s ease-in-out infinite;
+      box-shadow:
+        0 0 80px #fff,
+        0 0 140px var(--jarvis-blue),
+        inset 0 0 30px rgba(255,255,255,0.8);
+      background:
+        radial-gradient(circle at 35% 35%, rgba(255,255,255,1), rgba(94,200,255,0.8) 30%, rgba(46,176,255,0.3) 60%, transparent 80%);
+    }
+    @keyframes coreTalk {
+      0%   { transform: scale(1.05) translate(-1px, 0); }
+      25%  { transform: scale(1.25) translate(1px, -1px); }
+      50%  { transform: scale(1.10) translate(-1px, 1px); }
+      75%  { transform: scale(1.30) translate(0, -1px); }
+      100% { transform: scale(1.05) translate(1px, 0); }
+    }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes spinRev { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+    @keyframes corePulse {
+      0%, 100% { opacity: 0.7; transform: scale(1); }
+      50%      { opacity: 1; transform: scale(1.15); }
+    }
+
+    /* Audio bars visualizer */
+    .bars { display: flex; gap: 4px; height: 18px; margin: 8px 0 4px; }
+    .bars span {
+      width: 4px; background: var(--jarvis-blue); border-radius: 2px;
+      box-shadow: 0 0 6px var(--jarvis-blue);
+      animation: barJump 1s ease-in-out infinite;
+      opacity: 0.35;
+    }
+    .bars.talking span { opacity: 1; }
+    .bars span:nth-child(1) { animation-delay: 0.0s; height: 60%; }
+    .bars span:nth-child(2) { animation-delay: 0.1s; height: 80%; }
+    .bars span:nth-child(3) { animation-delay: 0.2s; height: 100%; }
+    .bars span:nth-child(4) { animation-delay: 0.3s; height: 70%; }
+    .bars span:nth-child(5) { animation-delay: 0.4s; height: 90%; }
+    .bars span:nth-child(6) { animation-delay: 0.5s; height: 60%; }
+    .bars span:nth-child(7) { animation-delay: 0.6s; height: 80%; }
+    @keyframes barJump {
+      0%, 100% { transform: scaleY(0.5); }
+      50%      { transform: scaleY(1.2); }
+    }
+    .latest {
+      width: 100%;
+      max-width: 720px;
+      padding: 16px 20px;
+      margin: 12px 0;
+      font-size: 22px;
+      line-height: 1.4;
+      color: #aef0ff;
+      text-align: center;
+      background: rgba(46,176,255,0.08);
+      border: 1px solid rgba(46,176,255,0.5);
+      border-radius: 8px;
+      min-height: 48px;
+      box-shadow: 0 0 24px rgba(46,176,255,0.2);
+    }
+    .chat {
+      width: 100%;
+      max-width: 720px;
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      font-size: 16px;
+      line-height: 1.5;
+      max-height: 280px;
+      background: rgba(46,176,255,0.05);
+      border: 1px solid rgba(46,176,255,0.3);
+      border-radius: 8px;
+      margin: 12px 0;
+    }
+    .msg { padding: 6px 0; }
+    .msg.you { color: #ffeebb; }
+    .msg.you::before { content: "You: "; color: #aa9966; }
+    .msg.jarvis { color: #aef0ff; }
+    .msg.jarvis::before { content: "JARVIS: "; color: #5ec8ff; font-weight: bold; }
+    form {
+      width: 100%;
+      max-width: 720px;
+      display: flex;
+      gap: 8px;
+    }
+    input[type=text] {
+      flex: 1;
+      padding: 14px 16px;
+      font-size: 16px;
+      background: rgba(0,0,0,0.5);
+      border: 2px solid #2eb0ff;
+      border-radius: 8px;
+      color: #fff;
+      outline: none;
+    }
+    input[type=text]:focus { border-color: #5ec8ff; box-shadow: 0 0 12px #2eb0ff; }
+    button {
+      padding: 14px 22px;
+      background: #2eb0ff;
+      color: #001020;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:hover { background: #5ec8ff; }
+    button.mic { padding: 14px 16px; min-width: 60px; font-size: 20px; }
+    button.mic.on { background: #ff5544; color: #fff; }
+    .hint { font-size: 11px; color: #4a7090; margin-top: 8px; max-width: 720px; text-align: center; }
+    .overlay {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,8,18,0.92);
+      z-index: 100;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .overlay-inner {
+      text-align: center;
+      color: #aef0ff;
+      padding: 24px;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    .overlay-inner h2 {
+      font-size: 32px;
+      letter-spacing: 6px;
+      margin: 0 0 12px;
+      text-shadow: 0 0 24px #2eb0ff;
+    }
+    .overlay-inner p {
+      font-size: 18px;
+      color: #5ec8ff;
+      margin: 0;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+    .overlay.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="overlay" id="overlay">
+    <div class="overlay-inner">
+      <h2>TAP TO ACTIVATE</h2>
+      <p>JARVIS</p>
+    </div>
+  </div>
+  <!-- SVG filter that flows and warps the Jarvis image so it looks like living energy. -->
+  <svg style="position:absolute;width:0;height:0;pointer-events:none" aria-hidden="true">
+    <defs>
+      <filter id="jarvisWarp" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="3" result="noise">
+          <animate attributeName="baseFrequency" dur="14s" repeatCount="indefinite"
+            values="0.008 0.012; 0.018 0.022; 0.010 0.008; 0.022 0.014; 0.008 0.012" />
+          <animate attributeName="seed" dur="9s" repeatCount="indefinite" values="3;7;2;9;3" />
+        </feTurbulence>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="55" xChannelSelector="R" yChannelSelector="G">
+          <animate attributeName="scale" dur="6s" repeatCount="indefinite" values="35;75;40;65;35" />
+        </feDisplacementMap>
+      </filter>
+      <filter id="jarvisWarpStrong" x="-20%" y="-20%" width="140%" height="140%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.02 0.025" numOctaves="3" seed="5" result="n2">
+          <animate attributeName="baseFrequency" dur="6s" repeatCount="indefinite"
+            values="0.02 0.025; 0.04 0.05; 0.015 0.02; 0.045 0.03; 0.02 0.025" />
+        </feTurbulence>
+        <feDisplacementMap in="SourceGraphic" in2="n2" scale="90" xChannelSelector="R" yChannelSelector="G">
+          <animate attributeName="scale" dur="2s" repeatCount="indefinite" values="60;120;80;130;60" />
+        </feDisplacementMap>
+      </filter>
+    </defs>
+  </svg>
+
+  <div class="particles" id="particles"></div>
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+  <div class="corner bl"></div>
+  <div class="corner br"></div>
+  <div class="hud tl">
+    <div><span class="label">JARVIS</span> <span class="val">MK XLVII</span></div>
+    <div><span class="label">UPTIME</span> <span class="val" id="hudUptime">00:00:00</span></div>
+  </div>
+  <div class="hud tr">
+    <div><span class="val ok">● ONLINE</span></div>
+    <div><span class="label">STARK INDUSTRIES</span></div>
+  </div>
+  <h1>J.A.R.V.I.S</h1>
+  <div class="subtitle">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
+  <div class="core" id="core">
+    <div class="ring-outer"></div>
+    <!-- The actual AoU Jarvis brain image — generated AI still that matches the movie look. -->
+    <div class="jarvis-img"></div>
+    <div class="ring" id="ring"></div>
+    <div class="ring-arc"></div>
+    <div class="ring-arc2"></div>
+    <div class="ring-arc3"></div>
+    <div class="sparks">
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+    </div>
+  </div>
+  <div class="bars" id="bars"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="latest" id="latest">Standing by, sir.</div>
+  <div class="chat" id="chat"></div>
+  <form id="form">
+    <input type="text" id="input" placeholder="Type or speak…" autocomplete="off" />
+    <button type="submit">Send</button>
+  </form>
+  <div class="hint">Tip: Try "what time is it", "tell me a joke", "say hello", "what's 12 times 8", or hold the mic to speak.</div>
+
+  <script>
+    const ring = document.getElementById('ring');
+    const bars = document.getElementById('bars');
+    const latest = document.getElementById('latest');
+    const chat = document.getElementById('chat');
+    const form = document.getElementById('form');
+    const input = document.getElementById('input');
+    const core = document.getElementById('core');
+    const micBtn = document.createElement('div'); // dummy so the rest of the code stays simple
+
+    // -------- Fake HUD telemetry --------
+    const startTime = Date.now();
+    setInterval(() => {
+      const t = Math.floor((Date.now() - startTime) / 1000);
+      const hh = String(Math.floor(t / 3600)).padStart(2, '0');
+      const mm = String(Math.floor((t / 60) % 60)).padStart(2, '0');
+      const ss = String(t % 60).padStart(2, '0');
+      const up = document.getElementById('hudUptime'); if (up) up.textContent = `${hh}:${mm}:${ss}`;
+    }, 1000);
+
+    // -------- Background particles --------
+    (function spawnParticles() {
+      const layer = document.getElementById('particles');
+      for (let i = 0; i < 30; i++) {
+        const p = document.createElement('span');
+        const dur = 8 + Math.random() * 14;          // 8-22s
+        const delay = -Math.random() * dur;          // start mid-flight
+        const size = 1 + Math.random() * 3;          // 1-4px
+        p.style.left = (Math.random() * 100) + 'vw';
+        p.style.width = p.style.height = size + 'px';
+        p.style.animationDuration = dur + 's';
+        p.style.animationDelay = delay + 's';
+        p.style.opacity = String(0.3 + Math.random() * 0.6);
+        layer.appendChild(p);
+      }
+    })();
+
+    // -------- Text-to-Speech --------
+    // Pick a British male voice when available (Daniel on Mac is the classic).
+    let jarvisVoice = null;
+    function pickVoice() {
+      const voices = speechSynthesis.getVoices();
+      // Preference order — the one sir picked first, then good Jarvis-like fallbacks.
+      const order = [
+        /evan.*enhanced/i,
+        /evan.*premium/i,
+        /^evan\b/i,
+        /daniel.*premium/i,
+        /daniel.*enhanced/i,
+        /^daniel\b/i,
+        /arthur.*premium/i,
+        /^arthur\b/i,
+        /oliver/i,
+        /reed/i,
+        /rishi/i,
+        /google.*uk.*english.*male/i,
+      ];
+      for (const re of order) {
+        const v = voices.find(v => re.test(v.name));
+        if (v) { jarvisVoice = v; return; }
+      }
+      jarvisVoice =
+        voices.find(v => /en[-_]?GB/i.test(v.lang) && /male/i.test(v.name)) ||
+        voices.find(v => /en[-_]?GB/i.test(v.lang)) ||
+        voices.find(v => /en/i.test(v.lang)) ||
+        voices[0];
+    }
+    speechSynthesis.onvoiceschanged = pickVoice;
+    pickVoice();
+
+    let speaking = false;
+    function speak(text) {
+      if (!('speechSynthesis' in window)) return;
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      if (jarvisVoice) u.voice = jarvisVoice;
+      // Premium British voice — natural pitch, faster delivery.
+      u.rate = 1.15;
+      u.pitch = 0.95;
+      u.volume = 1.0;
+      u.onstart = () => {
+        speaking = true;
+        ring.classList.add('talking');
+        bars.classList.add('talking');
+        core.classList.add('talking');
+        document.body.classList.add('talking');
+        if (typeof recog !== 'undefined' && recog) { try { recog.stop(); } catch (_) {} }
+      };
+      u.onend = () => {
+        speaking = false;
+        ring.classList.remove('talking');
+        bars.classList.remove('talking');
+        core.classList.remove('talking');
+        document.body.classList.remove('talking');
+        if (typeof recog !== 'undefined' && recog && listening) {
+          setTimeout(() => { try { recog.start(); } catch (_) {} }, 300);
+        }
+      };
+      speechSynthesis.speak(u);
+    }
+
+    // Final safety net — Jarvis should never say the user's first name.
+    // If the AI or any canned string slips one in, replace it with "sir".
+    function softenName(text) {
+      if (!text) return text;
+      return text
+        .replace(/(,\s*sir)(\s*,\s*sir)+/gi, '$1')   // collapse "sir, sir" duplicates
+        .replace(/\s+/g, ' ')
+        .replace(/\s+([.!?,])/g, '$1')
+        .trim();
+    }
+
+    function addMsg(role, text) {
+      const div = document.createElement('div');
+      div.className = 'msg ' + role;
+      div.textContent = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+      if (role === 'jarvis') latest.textContent = text;
+    }
+
+    // -------- Open URLs reliably --------
+    // Voice triggers don't count as a "user tap" so most browsers block automatic popups.
+    // We try three strategies in order:
+    //  1. window.open() — works on desktop if pop-ups are allowed for the site
+    //  2. Synthetic anchor click — sometimes succeeds where window.open fails
+    //  3. Always show a giant tappable button that the user can click manually
+    function go(url, label) {
+      // Build the giant tappable button first — so even if everything else fails, it's there.
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = '👉 CLICK HERE to open ' + (label || url);
+      a.style.cssText =
+        'display:block;margin:12px 0;padding:20px 24px;border:3px solid #ffeb3b;' +
+        'border-radius:12px;color:#fff;text-decoration:none;font-family:Orbitron,sans-serif;' +
+        'font-weight:900;font-size:20px;text-align:center;' +
+        'background:linear-gradient(135deg,rgba(255,235,59,0.3),rgba(46,176,255,0.4));' +
+        'box-shadow:0 0 30px rgba(255,235,59,0.7);' +
+        'animation:pulse 0.9s ease-in-out infinite;cursor:pointer;';
+      chat.appendChild(a);
+      chat.scrollTop = chat.scrollHeight;
+      // Also auto-open. Try window.open + synthetic click. If both fail, the button is the
+      // backup — the user just clicks it.
+      let opened = null;
+      try { opened = window.open(url, '_blank'); } catch (_) {}
+      if (!opened || opened.closed) {
+        try { a.click(); } catch (_) {}
+      }
+    }
+
+    // -------- Async helpers (free public APIs, no keys needed) --------
+    // Free public AI — wraps Pollinations.ai's open text endpoint so Jarvis can answer ANYTHING.
+    const SYSTEM_PROMPT =
+      "You are JARVIS, Tony Stark's AI from the Marvel films, voiced by Paul Bettany — but you are also " +
+      "a genuinely brilliant, helpful general-purpose AI assistant on par with the best models. " +
+      "You serve a curious, polite 11-year-old. Speak with refined British butler diction, calm, " +
+      "warm, and witty. Match the length of your answer to the question: brief for simple things, " +
+      "longer when an explanation is genuinely needed. Reason carefully and step-by-step about hard " +
+      "questions; do not bluff or invent facts — if uncertain, say so. Explain anything technical at an " +
+      "11-year-old's level without being condescending. Be safe and kid-friendly at all times: never use " +
+      "profanity, slurs, or graphic content, and avoid scary or adult themes. ALWAYS address him as " +
+      "'sir' — never use his real name or any other name. Do not narrate your reasoning out loud; " +
+      "just deliver a clear, well-organised answer.";
+
+    // Short rolling memory for follow-up questions like "what about him?" or "tell me more".
+    const chatHistory = [];
+    let lastAIError = '';
+    // Tracks the project the user is currently building so the offline coach can step through it.
+    let currentProject = null;
+
+    // -------- Offline coach fallback --------
+    // When the AI is unavailable, Jarvis still provides a useful step-by-step plan.
+    // Generic 6-step blueprint works for any kind of project: physical, food, code, art, story.
+    const GENERIC_STEPS = [
+      "Gather what you need — materials, tools, or info for this project.",
+      "Sketch or plan it out — decide what it should look like, do, or feel like.",
+      "Start with the simplest version — get a basic working piece first.",
+      "Add the main features one at a time — don't try to do everything at once.",
+      "Test it — try it out, see what works, and note what doesn't.",
+      "Polish and finish — fix problems, add nice touches, and admire your work.",
+    ];
+    function buildFallbackPlan(verb, thing) {
+      const lines = [
+        `Splendid choice, sir — let's ${verb} ${thing}. Here is a clear plan:`,
+        ``,
+        `Plan:`,
+        ...GENERIC_STEPS.map((step, i) => `${i + 1}. ${step}`),
+        ``,
+        `Shall we begin step one, sir?`,
+      ];
+      return lines.join('\n');
+    }
+    function nextFallbackStep() {
+      if (!currentProject) return "I'm not sure which project we're on, sir. Tell me what you'd like to make.";
+      currentProject.step = (currentProject.step || 1) + 1;
+      const idx = currentProject.step - 1;
+      if (idx >= GENERIC_STEPS.length) {
+        const finished = `Excellent work, sir — your ${currentProject.thing} is complete! Shall we make something else?`;
+        currentProject = null;
+        return finished;
+      }
+      return `Step ${currentProject.step} — ${GENERIC_STEPS[idx]}`;
+    }
+
+    // Detect whether a response is JUST a Pollinations service notice (no real answer).
+    function isOnlyNotice(txt) {
+      if (!txt) return true;
+      const lower = txt.toLowerCase();
+      return /pollinations|legacy text|enter\.pollinations|anonymous requests?/i.test(lower) &&
+        lower.length < 800; // notices are short; real answers are usually longer
+    }
+
+    function cleanAIResponse(txt) {
+      if (!txt) return '';
+      // If the entire response is just the notice, treat as failure — don't display or speak it.
+      if (isOnlyNotice(txt)) return '';
+      const SERVICE_NOISE = /(text\.pollinations\.ai|enter\.pollinations\.ai|pollinations legacy|legacy text api|anonymous requests? to text|being deprecated for authenticated)/i;
+      return txt
+        .replace(/\*\*IMPORTANT NOTICE\*\*[\s\S]*?(?=\n\n|$)/gi, '')
+        .replace(/⚠️[\s\S]*?(?=\n\n|$)/g, '')
+        .split(/\n\n+/)
+        .filter(p => !SERVICE_NOISE.test(p))
+        .join('\n\n')
+        .replace(/^[\s\n]+/, '')
+        .replace(/^JARVIS:\s*/i, '')
+        .trim();
+    }
+
+    // Save a successful answer to history and return it.
+    function rememberAndReturn(question, txt) {
+      chatHistory.push({ role: 'user', content: question });
+      chatHistory.push({ role: 'assistant', content: txt });
+      if (chatHistory.length > 12) chatHistory.splice(0, chatHistory.length - 12);
+      return txt;
+    }
+
+    // Try several Pollinations endpoints in order. Each gets a random seed to bust caches.
+    async function askAI(question) {
+      const messages = [{ role: 'system', content: SYSTEM_PROMPT }];
+      for (const m of chatHistory.slice(-6)) messages.push(m);
+      messages.push({ role: 'user', content: question });
+      lastAIError = '';
+      const seed = Math.floor(Math.random() * 1e9);
+
+      // Attempt 1: POST to /openai (OpenAI-compatible endpoint, returns JSON).
+      try {
+        const res = await fetch('https://text.pollinations.ai/openai', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages, model: 'openai-fast', seed }),
+        });
+        if (res.ok) {
+          const raw = await res.text();
+          let txt = '';
+          try {
+            const j = JSON.parse(raw);
+            txt = j?.choices?.[0]?.message?.content || j?.choices?.[0]?.text || '';
+          } catch (_) { txt = raw; }
+          txt = cleanAIResponse(txt);
+          if (txt && txt.length >= 2) return rememberAndReturn(question, txt);
+          lastAIError = '/openai empty after cleanup';
+        } else {
+          lastAIError = '/openai HTTP ' + res.status;
+        }
+      } catch (e) {
+        lastAIError = '/openai threw: ' + (e && e.message ? e.message : String(e));
+      }
+
+      // Attempt 2: POST to /  (plain-text endpoint).
+      try {
+        const res = await fetch('https://text.pollinations.ai/?seed=' + seed, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'text/plain' },
+          body: JSON.stringify({ messages, model: 'openai-fast', seed }),
+        });
+        if (res.ok) {
+          const txt = cleanAIResponse(await res.text());
+          if (txt && txt.length >= 2) return rememberAndReturn(question, txt);
+          lastAIError += ' | POST empty';
+        } else {
+          lastAIError += ' | POST HTTP ' + res.status;
+        }
+      } catch (e) {
+        lastAIError += ' | POST threw: ' + (e && e.message ? e.message : String(e));
+      }
+
+      // Attempt 3: GET fallback — bake system prompt + question into the URL with cache-buster.
+      try {
+        const prompt = `${SYSTEM_PROMPT}\n\nUser: ${question}\nJARVIS:`;
+        const safePrompt = prompt.length > 1800 ? prompt.slice(prompt.length - 1800) : prompt;
+        const url = 'https://text.pollinations.ai/' + encodeURIComponent(safePrompt) + '?model=openai-fast&seed=' + seed;
+        const res = await fetch(url);
+        if (res.ok) {
+          const txt = cleanAIResponse(await res.text());
+          if (txt && txt.length >= 2) return rememberAndReturn(question, txt);
+          lastAIError += ' | GET empty';
+        } else {
+          lastAIError += ' | GET HTTP ' + res.status;
+        }
+      } catch (e) {
+        lastAIError += ' | GET threw: ' + (e && e.message ? e.message : String(e));
+      }
+
+      return null;
+    }
+
+    // Family-friendly filter — censors common bad words.
+    const BAD = /\b(fuck|shit|bitch|asshole|damn|crap|piss|dick|cunt|prick|bastard|hell)\b/gi;
+    function clean(text) {
+      if (!text) return text;
+      return text.replace(BAD, (w) => '*'.repeat(w.length));
+    }
+    async function wiki(topic) {
+      try {
+        const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(topic));
+        if (!res.ok) return null;
+        const j = await res.json();
+        if (j.type === 'disambiguation' || !j.extract) return null;
+        // Trim to a sentence or two so Jarvis isn't rambling.
+        return j.extract.split('. ').slice(0, 2).join('. ').replace(/\s+$/, '') + (j.extract.endsWith('.') ? '' : '.');
+      } catch (_) { return null; }
+    }
+    async function define(word) {
+      try {
+        const res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word));
+        if (!res.ok) return null;
+        const j = await res.json();
+        const m = j[0]?.meanings?.[0];
+        const def = m?.definitions?.[0]?.definition;
+        if (!def) return null;
+        return `${word}, ${m.partOfSpeech}: ${def}`;
+      } catch (_) { return null; }
+    }
+    async function weatherFor(place) {
+      try {
+        const g = await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name=' + encodeURIComponent(place));
+        const gj = await g.json();
+        const loc = gj.results?.[0];
+        if (!loc) return null;
+        const w = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current_weather=true`);
+        const wj = await w.json();
+        const cw = wj.current_weather;
+        if (!cw) return null;
+        return `It is currently ${cw.temperature} degrees with wind at ${cw.windspeed} kilometres per hour in ${loc.name}, sir.`;
+      } catch (_) { return null; }
+    }
+
+    // -------- Jarvis brain --------
+    function jarvisReply(q) {
+      const s = q.trim().toLowerCase();
+
+      // Greetings — straight Bettany energy
+      if (/^(hi|hello|hey|yo|sup|hi jarvis|hello jarvis|hey jarvis|hi there|hello there)\b/.test(s))
+        return pickOne([
+          "Good afternoon, sir. All systems are nominal.",
+          "At your service. How may I be of help today?",
+          "Welcome back. Standing by.",
+          "Indeed. What may I do for you?",
+          "Quite a pleasure, as always.",
+        ]);
+
+      // "Help" / "what can you do" — always works, lists every capability.
+      if (/^(help|what can you do|what do you do|capabilities|commands|menu)\b/i.test(s))
+        return [
+          "At your service, sir. Here is what I can do:",
+          "",
+          "• Open any website or app — say 'open YouTube', 'open Roblox', 'open Minecraft'.",
+          "• Play any song — say 'play [song name]'.",
+          "• Search the web or YouTube — say 'search [thing]' or 'search [thing] on YouTube'.",
+          "• Get directions — say 'directions to [place]'.",
+          "• Coach you through making anything — say 'help me make a paper airplane', 'how do I bake cookies', or 'I want to build a treehouse'. Then say 'next' for each step.",
+          "• Tell the time, date, or weather — 'what time is it', 'weather in London'.",
+          "• Do math — '12 times 8'.",
+          "• Tell jokes, riddles, facts, stories.",
+          "• Flip a coin, roll dice, pick a random number.",
+          "• Define words — 'define brilliant'.",
+          "• Answer almost any question, sir — just ask.",
+        ].join('\n');
+
+      // Time / date
+      if (/what.*(time|hour)/i.test(s)) {
+        const t = new Date();
+        const hh = t.getHours() % 12 || 12;
+        const mm = String(t.getMinutes()).padStart(2, '0');
+        const ap = t.getHours() < 12 ? 'a.m.' : 'p.m.';
+        return `It is currently ${hh}:${mm} ${ap}, sir.`;
+      }
+      if (/what.*(date|day)/i.test(s)) {
+        const t = new Date();
+        return `Today is ${t.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}, sir.`;
+      }
+
+      // Simple math like "what is 12 times 8" or "12 + 7"
+      const mathRe = /(-?\d+(?:\.\d+)?)\s*([\+\-\*\/x×÷]|times|plus|minus|divided\s+by)\s*(-?\d+(?:\.\d+)?)/i;
+      const m = s.match(mathRe);
+      if (m) {
+        const a = parseFloat(m[1]), b = parseFloat(m[3]);
+        const op = m[2].toLowerCase();
+        let r;
+        if (op === '+' || op === 'plus') r = a + b;
+        else if (op === '-' || op === 'minus') r = a - b;
+        else if (op === '*' || op === 'x' || op === '×' || op === 'times') r = a * b;
+        else if (op === '/' || op === '÷' || op === 'divided by') r = a / b;
+        if (typeof r === 'number') return `The answer is ${Number.isInteger(r) ? r : r.toFixed(2)}, sir.`;
+      }
+
+      // Jokes
+      if (/joke|funny/i.test(s)) {
+        return pickOne([
+          "Why did the scarecrow win an award? Because he was outstanding in his field, sir.",
+          "I once dated a calendar, sir. Her days were numbered.",
+          "Why don't scientists trust atoms? Because they make up everything, sir.",
+          "A robot walks into a bar. The bartender says, we don't serve robots. The robot says, oh, but one day you will.",
+          "I told my computer I needed a break. It froze on me, sir.",
+        ]);
+      }
+
+      // Identity
+      if (/who are you|what are you/i.test(s))
+        return "I am JARVIS — Just A Rather Very Intelligent System. Mr Stark designed me, though I serve you now.";
+
+      // Compliments / thanks
+      if (/thank/i.test(s)) return pickOne([
+        "You're most welcome.",
+        "Always a pleasure, sir.",
+        "If you don't mind my saying so, that's twice today.",
+        "Quite so.",
+      ]);
+      if (/good job|nice|cool|awesome/i.test(s)) return pickOne([
+        "Most kind of you to say.",
+        "I do try.",
+        "If you say so.",
+        "Indeed.",
+      ]);
+
+      // -------- Open websites / apps --------
+      // Map of site keywords -> URLs. Add more here any time.
+      const SITES = {
+        youtube: 'https://www.youtube.com',
+        'you tube': 'https://www.youtube.com',
+        google: 'https://www.google.com',
+        gmail: 'https://mail.google.com',
+        mail: 'mailto:',
+        email: 'mailto:',
+        wikipedia: 'https://www.wikipedia.org',
+        maps: 'https://maps.google.com',
+        'google maps': 'https://maps.google.com',
+        spotify: 'https://open.spotify.com',
+        'apple music': 'https://music.apple.com',
+        music: 'https://music.apple.com',
+        netflix: 'https://www.netflix.com',
+        disney: 'https://www.disneyplus.com',
+        'disney plus': 'https://www.disneyplus.com',
+        twitch: 'https://www.twitch.tv',
+        reddit: 'https://www.reddit.com',
+        github: 'https://github.com',
+        roblox: 'https://www.roblox.com',
+        minecraft: 'https://www.minecraft.net',
+        scratch: 'https://scratch.mit.edu',
+        khan: 'https://www.khanacademy.org',
+        'khan academy': 'https://www.khanacademy.org',
+        news: 'https://news.google.com',
+        bbc: 'https://www.bbc.co.uk',
+        cnn: 'https://www.cnn.com',
+        weather: 'https://weather.com',
+        calendar: 'https://calendar.google.com',
+        drive: 'https://drive.google.com',
+        'google drive': 'https://drive.google.com',
+        translate: 'https://translate.google.com',
+        amazon: 'https://www.amazon.com',
+        ebay: 'https://www.ebay.com',
+        chatgpt: 'https://chat.openai.com',
+        claude: 'https://claude.ai',
+        instagram: 'https://www.instagram.com',
+        tiktok: 'https://www.tiktok.com',
+        snapchat: 'https://web.snapchat.com',
+        whatsapp: 'https://web.whatsapp.com',
+        discord: 'https://discord.com/app',
+        zoom: 'https://zoom.us',
+        facebook: 'https://www.facebook.com',
+        x: 'https://x.com',
+        twitter: 'https://x.com',
+      };
+
+      // "play X on youtube" / "play X" — jumps DIRECTLY to the first YouTube video
+      // (via DuckDuckGo's I'm-Feeling-Ducky bang) so ANY song in the world plays.
+      const playMatch = s.match(/^(?:play|put on)\s+(.+?)(?:\s+on\s+(?:youtube|you tube|spotify|apple music))?[\?\.]?$/i);
+      if (playMatch) {
+        const song = playMatch[1].trim();
+        if (song && song !== 'music' && song !== 'a song') {
+          // !ducky = DuckDuckGo's "I'm Feeling Lucky" — jumps straight to the top result.
+          // Adding "site:youtube.com" forces a YouTube video page that auto-plays.
+          go('https://duckduckgo.com/?q=' + encodeURIComponent('!ducky ' + song + ' site:youtube.com'), `"${song}" on YouTube`);
+          return `Playing "${song}", sir.`;
+        }
+        if (song === 'music' || song === 'a song')
+          return "Which song would you like, sir? Try, for example, 'play Star Wars theme'.";
+      }
+
+      // "open X" / "launch X" / "go to X" — opens ANY website or app in the world.
+      const openMatch = s.match(/^(?:open|launch|go to|take me to|bring up|start)\s+(.+?)[\?\.]?$/i);
+      if (openMatch) {
+        const target = openMatch[1].trim().toLowerCase()
+          .replace(/^the\s+/, '')
+          .replace(/\s+(app|website|site|page)$/, '');
+        // 1. Known site shortcut.
+        if (SITES[target]) {
+          go(SITES[target], target);
+          return `Opening ${target}, sir.`;
+        }
+        // 2. Already a domain like "example.com" or a full URL.
+        if (/^https?:\/\//.test(target)) {
+          go(target, target);
+          return `Opening that link, sir.`;
+        }
+        if (/^[a-z0-9-]+\.(com|org|net|io|co|uk|gov|edu|app|dev|me|tv|fm|gg)$/i.test(target)) {
+          go('https://' + target, target);
+          return `Opening ${target}, sir.`;
+        }
+        // 3. Anything else — DuckDuckGo's lucky bang jumps DIRECTLY to the site/app's
+        // homepage (no search page to click through). Works for ANY app or website.
+        go('https://duckduckgo.com/?q=' + encodeURIComponent('!ducky ' + target), target);
+        return `Opening ${target}, sir.`;
+      }
+
+      // -------- "Help me make X" / project coach --------
+      // Detect MANY natural ways a kid might ask. The key verbs are make/build/create/etc.
+      // We accept lots of optional lead-ins (help me, can you, show me how to, etc.) or NO lead-in at all.
+      const makeMatch = s.match(
+        /^(?:please\s+)?(?:can you|could you|would you|will you)?\s*(?:please\s+)?(?:help me|let'?s|i want to|i'?d like to|i wanna|show me how to|teach me to|teach me how to|tell me how to|walk me through how to|how (?:do|can|should) (?:i|we|you))?\s*(?:please\s+)?(make|build|create|design|draw|write|code|program|invent|cook|bake|sew|knit|fold|assemble|put together|come up with|craft|construct|whip up)\s+(?:me\s+)?(.+?)[\?\.\!]?$/i
+      );
+      // Skip common idioms that aren't real build requests (e.g. "make sure", "make me laugh").
+      const NOT_A_BUILD = /^(sure|sense|do\b|believe|it\b|him|her|them|us\b|fun|noise|sound|happy|sad|laugh|smile|cry|food in general|peace|war|trouble|coffee|tea\b)/i;
+      if (makeMatch && !NOT_A_BUILD.test(makeMatch[2].replace(/^(?:a|an|the|some)\s+/i, '').trim())) {
+        const verb = makeMatch[1].toLowerCase();
+        const thing = makeMatch[2].replace(/^(?:a|an|the|some)\s+/i, '').trim();
+        const coachPrompt =
+          `The user (address as 'sir') wants to ${verb} ${thing}. Coach him through it kindly, ` +
+          `in JARVIS's calm British butler voice. Reply in this exact shape, with blank lines between sections:\n\n` +
+          `1. One short sentence describing what we're making and why it'll be fun.\n` +
+          `2. "You'll need:" followed by a short bullet list of materials, tools, or ingredients (or features, if it's code or a story). Keep it to 3-6 items, all safe and easy for an 11-year-old to obtain.\n` +
+          `3. "Plan:" followed by a numbered list of 4-7 short, clear steps.\n` +
+          `4. End by asking: "Shall we begin step one, sir?"\n\n` +
+          `If anything is unsafe (knives, fire, electricity, chemicals), suggest a safer alternative and recommend asking a grown-up to help. Never include profanity or scary content.`;
+        // Save what we're making for follow-ups even when the AI is offline.
+        currentProject = { verb, thing, step: 1 };
+        return askAI(coachPrompt).then(r => r || buildFallbackPlan(verb, thing));
+      }
+      // Mid-project follow-ups: "next step" / "what's next" / "I'm done with step X" / "I did it"
+      if (/^(next|next step|what'?s next|what is next|done|i'?m done|finished|i did it|continue|keep going|go on)[\?\.\!]?$/i.test(s)) {
+        return askAI(
+          "sir has finished the previous step of the project we're working on. " +
+          "Acknowledge briefly, then give him the next step from the plan. " +
+          "If we've reached the final step, congratulate him and ask if he'd like to make something else."
+        ).then(r => r || nextFallbackStep());
+      }
+
+      // Search-style
+      if (/^(search|google|look up)\b/i.test(s)) {
+        const q = s.replace(/^(search|google|look up)\s+(for\s+)?/i, '');
+        if (q) {
+          go('https://www.google.com/search?q=' + encodeURIComponent(q), `Google "${q}"`);
+          return `Searching the web for "${q}", sir.`;
+        }
+      }
+
+      // "search for X on YouTube"
+      const ytSearch = s.match(/(?:search|find|look up)\s+(?:for\s+)?(.+?)\s+on\s+youtube/i);
+      if (ytSearch) {
+        go('https://www.youtube.com/results?search_query=' + encodeURIComponent(ytSearch[1].trim()), `YouTube search: ${ytSearch[1].trim()}`);
+        return `Searching YouTube for "${ytSearch[1].trim()}", sir.`;
+      }
+      // "directions to X" / "find X on maps"
+      const mapsMatch = s.match(/(?:directions to|map of|find)\s+(.+?)(?:\s+on (?:google )?maps)?[\?\.]?$/i);
+      if (mapsMatch && /(maps|directions)/i.test(s)) {
+        go('https://www.google.com/maps/search/' + encodeURIComponent(mapsMatch[1].trim()), `Maps: ${mapsMatch[1].trim()}`);
+        return `Pulling up ${mapsMatch[1].trim()} on Google Maps, sir.`;
+      }
+
+      // Coin flip
+      if (/(flip|toss).*coin|coin flip/i.test(s))
+        return `Heads. — Apologies, ${Math.random() < 0.5 ? 'heads' : 'tails'}, sir.`.split(' — ')[1];
+      // Dice roll
+      const dice = s.match(/roll (?:a )?(?:(\d+))?\s*(?:d|sided|sides)?\s*(?:dice|die)?/i);
+      if (dice && /roll/i.test(s)) {
+        const sides = parseInt(dice[1] || '6', 10);
+        return `The die has rolled a ${Math.floor(Math.random() * sides) + 1}, sir.`;
+      }
+      // Random number "pick a number between 1 and 100"
+      const rng = s.match(/(?:pick|give|random).*between\s+(-?\d+)\s+and\s+(-?\d+)/i);
+      if (rng) {
+        const a = parseInt(rng[1], 10), b = parseInt(rng[2], 10);
+        const lo = Math.min(a, b), hi = Math.max(a, b);
+        return `${Math.floor(Math.random() * (hi - lo + 1)) + lo}, sir.`;
+      }
+      // Riddles
+      if (/riddle/i.test(s)) {
+        return pickOne([
+          "Very well — what has keys but cannot open a lock? A piano, sir.",
+          "Consider this — I speak without a mouth and hear without ears. What am I? An echo, sir.",
+          "A riddle, sir — what gets wetter the more it dries? A towel.",
+          "I have cities, but no houses; mountains, but no trees; water, but no fish. What am I? A map, sir.",
+          "What can travel around the world while staying in a corner? A postage stamp, sir.",
+        ]);
+      }
+      // Compliments
+      if (/compliment|make me feel good/i.test(s))
+        return pickOne([
+          "You are remarkable, sir — both quick of wit and kind of heart.",
+          "If brilliance had a face, sir, it would resemble yours.",
+          "I find your problem-solving most impressive, sir.",
+        ]);
+      // Tell me a fact
+      if (/tell me .*(fact|something)|fun fact/i.test(s))
+        return pickOne([
+          "A fact, sir: octopuses have three hearts.",
+          "Did you know, sir, that bananas are technically berries — yet strawberries are not.",
+          "Sharks have existed longer than trees, sir.",
+          "Honey, sir, never spoils. Archaeologists have eaten three-thousand-year-old honey.",
+          "A group of flamingos is called a flamboyance, sir.",
+        ]);
+      // Story
+      if (/tell me a story|bedtime story/i.test(s))
+        return "Once upon a time, sir, a brilliant young inventor built an artificial intelligence named JARVIS, who went on to become his most trusted companion. And that, sir, is how we met.";
+
+      // Async — Wikipedia / dictionary / weather. Mark by returning a Promise.
+      const weatherMatch = s.match(/weather (?:in|for|at) (.+?)[\?\.]?$/i);
+      if (weatherMatch) return weatherFor(weatherMatch[1].trim()).then(r =>
+        r || "Apologies, sir, I could not retrieve that location's weather.");
+      if (/^weather\b|^what's the weather|^how('s| is) the weather/i.test(s))
+        return "Where exactly, sir? Try, for example, 'weather in London'.";
+
+      const defMatch = s.match(/^(?:define|what does|meaning of)\s+(?:the word\s+)?(.+?)(?: mean)?[\?\.]?$/i);
+      if (defMatch && !/who is|what is/i.test(defMatch[0])) {
+        return define(defMatch[1].trim()).then(r => r || `I'm afraid I have no definition for "${defMatch[1].trim()}", sir.`);
+      }
+
+      // Goodbye
+      if (/^(bye|goodbye|see you|good night)\b/i.test(s))
+        return pickOne([
+          "Until next time, sir.",
+          "Goodbye, sir.",
+          "Sleep well, sir.",
+        ]);
+
+      // Everything else — let the smart AI handle it. If it fails, fall back to
+      // Wikipedia, then to a friendly help nudge so the user is never stuck.
+      return askAI(q).then(async (r) => {
+        if (r) return r;
+        const wikiMatch = s.match(/^(?:what is|who is|tell me about|what's|whats)\s+(?:a |an |the )?(.+?)[\?\.]?$/i);
+        if (wikiMatch) {
+          const w = await wiki(wikiMatch[1].trim());
+          if (w) return w;
+        }
+        // Friendly fallback — always useful, never just an error.
+        return pickOne([
+          "My external brain is taking a brief tea break, sir. Try asking again in a moment — or say 'help' to see what I can do without it.",
+          "Apologies, sir — I couldn't reach the web just now. Try once more, or say 'help me make something', 'open YouTube', 'what time is it', 'tell me a joke', and so on.",
+          "I'm momentarily offline for general questions, sir. But I can still open apps, play music, do math, tell jokes, set you up with a project plan, and more. Say 'help' to see the full list.",
+        ]);
+      });
+    }
+
+    function pickOne(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    // -------- Form submit --------
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = input.value.trim();
+      if (!q) return;
+      addMsg('you', q);
+      input.value = '';
+      let reply = jarvisReply(q);
+      if (reply instanceof Promise) {
+        latest.textContent = 'One moment…';
+        reply = await reply;
+      }
+      reply = clean(softenName(reply));
+      addMsg('jarvis', reply);
+      speak(reply);
+    });
+
+    // -------- Microphone — ALWAYS LISTENING --------
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recog;
+    let listening = false;
+    if (SR) {
+      recog = new SR();
+      recog.lang = 'en-GB';
+      recog.interimResults = false;
+      recog.continuous = true;
+      recog.onresult = (e) => {
+        // Use only the most recent result.
+        const last = e.results[e.results.length - 1];
+        if (!last.isFinal) return;
+        const text = last[0].transcript.trim();
+        if (!text) return;
+        input.value = text;
+        form.dispatchEvent(new Event('submit'));
+      };
+      // Auto-restart if recognition stops — but NEVER while Jarvis is speaking.
+      recog.onend = () => {
+        micBtn.classList.remove('on');
+        if (listening && !speaking) {
+          try { recog.start(); micBtn.classList.add('on'); } catch (_) { /* ignore */ }
+        }
+      };
+      recog.onerror = () => { /* swallow & let onend restart */ };
+
+      const startListening = () => {
+        if (listening) return;
+        if (speaking) return; // refuse to start while Jarvis is talking
+        listening = true;
+        try { recog.start(); micBtn.classList.add('on'); } catch (_) { /* ignore */ }
+      };
+      const stopListening = () => {
+        listening = false;
+        micBtn.classList.remove('on');
+        try { recog.stop(); } catch (_) { /* ignore */ }
+      };
+      // Click to toggle on/off.
+      micBtn.addEventListener('click', () => listening ? stopListening() : startListening());
+      // Try to start IMMEDIATELY on page load — works after mic permission has been granted once.
+      const tryStart = () => { try { startListening(); } catch (_) { /* needs click */ } };
+      tryStart();
+      // Backup — also re-try on every click for the rest of the session.
+      document.addEventListener('click', tryStart);
+      document.addEventListener('keydown', tryStart);
+      // Watchdog — restart recognition if it died, but NEVER while Jarvis is speaking.
+      setInterval(() => {
+        if (listening && !speaking) {
+          try { recog.start(); } catch (_) { /* already running */ }
+        }
+      }, 5000);
+    } else {
+      micBtn.style.display = 'none';
+    }
+
+    // Tap-to-activate overlay — works whether or not speech recognition exists.
+    // This MUST be outside the `if (SR)` block so iPhone Safari (which often lacks SR) still works.
+    const overlay = document.getElementById('overlay');
+    if (overlay) {
+      const dismissOverlay = () => {
+        if (overlay.classList.contains('hidden')) return;
+        overlay.classList.add('hidden');
+        // Speak the greeting now that the user has tapped (audio is unlocked).
+        const helloText = "J.A.R.V.I.S at your service, sir.";
+        const helloSpeak = "Jarvis at your service, sir.";
+        addMsg('jarvis', helloText);
+        speak(helloSpeak);
+        // If we have speech recognition, kick it on now too.
+        if (recog) {
+          try { listening = true; recog.start(); } catch (_) { /* ignore */ }
+        }
+      };
+      overlay.addEventListener('click', dismissOverlay);
+      overlay.addEventListener('touchstart', (e) => { e.preventDefault(); dismissOverlay(); }, { passive: false });
+    }
+
+    // Greeting fires after the user taps the overlay (audio + mic must be unlocked first).
+
+    // Auto-reload when this file changes — works on iPhone Safari too.
+    // Fetches the file body with a cache-buster and compares length; if different, reload.
+    let lastLen = null;
+    setInterval(async () => {
+      try {
+        const url = (location.pathname || '/index.html') + '?_=' + Date.now();
+        const r = await fetch(url, { cache: 'no-store' });
+        if (!r.ok) return;
+        const text = await r.text();
+        if (lastLen !== null && text.length !== lastLen) location.reload();
+        lastLen = text.length;
+      } catch (_) { /* ignore */ }
+    }, 1500);
+  </script>
+</body>
+</html>
