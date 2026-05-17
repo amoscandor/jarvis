@@ -1492,28 +1492,30 @@
       micBtn.style.display = 'none';
     }
 
-    // Tap-to-activate overlay — works whether or not speech recognition exists.
-    // This MUST be outside the `if (SR)` block so iPhone Safari (which often lacks SR) still works.
+    // NO ACTIVATION NEEDED — Jarvis auto-starts as soon as the page loads.
+    // (Browsers may still require ONE click somewhere the very first time on a fresh
+    //  browser before they allow the microphone/voice — that's an Apple/Google rule
+    //  no code can bypass. After that first time it's fully automatic.)
     const overlay = document.getElementById('overlay');
-    if (overlay) {
-      const dismissOverlay = () => {
-        if (overlay.classList.contains('hidden')) return;
-        overlay.classList.add('hidden');
-        // Speak the greeting now that the user has tapped (audio is unlocked).
-        const helloText = "J.A.R.V.I.S at your service, sir.";
-        const helloSpeak = "Jarvis at your service, sir.";
-        addMsg('jarvis', helloText);
-        speak(helloSpeak);
-        // If we have speech recognition, kick it on now too.
-        if (recog) {
-          try { listening = true; recog.start(); } catch (_) { /* ignore */ }
-        }
-      };
-      overlay.addEventListener('click', dismissOverlay);
-      overlay.addEventListener('touchstart', (e) => { e.preventDefault(); dismissOverlay(); }, { passive: false });
-    }
-
-    // Greeting fires after the user taps the overlay (audio + mic must be unlocked first).
+    let greeted = false;
+    const wakeUpJarvis = () => {
+      if (overlay && !overlay.classList.contains('hidden')) overlay.classList.add('hidden');
+      if (!greeted) {
+        greeted = true;
+        addMsg('jarvis', "J.A.R.V.I.S at your service, sir.");
+        speak("Jarvis at your service, sir.");
+      }
+      if (recog) {
+        try { listening = true; recog.start(); } catch (_) { /* already running */ }
+      }
+    };
+    // Auto-start immediately on load.
+    wakeUpJarvis();
+    // Safety net: if the browser blocked audio/mic on load, the first tap or key
+    // anywhere unlocks it — the user never has to find a special button.
+    document.addEventListener('click', wakeUpJarvis);
+    document.addEventListener('keydown', wakeUpJarvis);
+    document.addEventListener('touchstart', wakeUpJarvis, { passive: true });
 
     // Auto-reload when this file changes — works on iPhone Safari too.
     // Fetches the file body with a cache-buster and compares length; if different, reload.
