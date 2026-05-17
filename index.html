@@ -1436,7 +1436,22 @@
         if (!last.isFinal) return;
         const text = last[0].transcript.trim();
         if (!text) return;
-        input.value = text;
+
+        // WAKE WORD GATE: only respond if the spoken sentence contains "jarvis".
+        // Accept common mis-hearings too (jarvis / jarviss / jervis / jarius).
+        const wake = /\b(jarvis|jarviss|jarvi|jervis|jarius|jervais)\b/i;
+        if (!wake.test(text)) return;   // no wake word -> stay silent
+
+        // Strip the wake word (and a leading "hey/ok/hello") so the command is clean.
+        let cmd = text
+          .replace(/\b(hey|ok|okay|hello|hi)\b/gi, ' ')
+          .replace(wake, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        // If they only said "Jarvis" with no command, give an acknowledgement.
+        if (!cmd) cmd = 'hello';
+
+        input.value = cmd;
         form.dispatchEvent(new Event('submit'));
       };
       // Auto-restart if recognition stops — but NEVER while Jarvis is speaking.
